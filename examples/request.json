@@ -30,12 +30,12 @@
 
   "items": [
     {
-      "name": "SaaS 이용료 (2026년 9월)",
+      "name": "SaaS 이용료",
       "supplyCost": 100000
     }
   ],
 
-  "writeDate": "2026-09-30T00:00:00+09:00",
+  "_writeDate": "생략하면 오늘(KST). 넣을 때는 과거이거나 오늘이어야 한다",
   "purpose": "CLAIM",
   "taxType": "TAXABLE"
 }

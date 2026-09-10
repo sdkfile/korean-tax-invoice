@@ -55,8 +55,11 @@ curl -X POST "https://xapi.bolta.io/v1/issuers/{issuerId}/certificates/url" \
 ```
 
 - 등록 URL 은 **5분** 유효
-- 등록 내역 조회는 등록 후 **30초** 이내에만 가능
+- 등록 내역 조회는 등록 후 **30초** 이내에만 가능 (리다이렉트 복귀 직후에 조회)
+- 만료되면 URL 을 다시 발급받아야 한다
 - 만료일은 `GET /v1/issuers` 응답의 `certificate.expiresAt` 에서 확인
+
+출처: [인증서 등록 연동](https://docs.bolta.io/docs/api-introduction/certificate-registration)
 
 `node scripts/preflight.mjs` 가 만료일과 남은 일수를 보여준다.
 
@@ -94,6 +97,8 @@ export function GET() {
 |---|---|
 | 테스트 키 | 10~30초 |
 | 라이브 키 | 약 10분 |
+
+출처: [웹훅 - 세금계산서](https://docs.bolta.io/docs/api-introduction/webhook-tax-invoice)
 
 웹훅이 오지 않으면 상태 조회로 확인한다.
 

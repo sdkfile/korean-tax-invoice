@@ -41,9 +41,13 @@ async function main() {
   const raw = JSON.parse(readFileSync(file, 'utf8'))
 
   // writeDate 는 JSON 에서 문자열로 온다.
+  //
+  // 생략하면 오늘(KST)로 채운다. 예제 파일에 고정 날짜를 박아두면 시간이
+  // 지나 미래 날짜가 되고, 볼타가 "작성일자는 현재 날짜와 같거나 이전이어야
+  // 합니다" 로 거절한다 — 예제가 문서의 경고를 그대로 위반하게 된다.
   const request = {
     ...raw,
-    writeDate: new Date(raw.writeDate),
+    writeDate: raw.writeDate ? new Date(raw.writeDate) : new Date(),
     items: (raw.items ?? []).map((it) => ({
       ...it,
       ...(it.date ? { date: new Date(it.date) } : {}),

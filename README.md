@@ -3,8 +3,11 @@
 한국 전자세금계산서 발행 라이브러리 + Claude Code 스킬.
 중복 발행과 잘못된 발행을 **구조로** 막는다.
 
+> npm 에는 아직 올리지 않았다. 지금은 클론해서 쓴다.
+
 ```bash
-npm install korean-tax-invoice
+git clone https://github.com/sdkfile/korean-tax-invoice
+cd korean-tax-invoice && npm install && npm run build
 ```
 
 ## 왜 이게 필요한가
@@ -49,6 +52,7 @@ node scripts/check-status.mjs <issuanceKey>         # 결과 확인
 ## 코드로 쓰기
 
 ```ts
+// npm 게시 전이라 클론 후 `npm link` 하거나 상대경로로 import 한다
 import {
   BoltaProvider,
   validateIssueRequest,
