@@ -1,0 +1,124 @@
+# korean-tax-invoice
+
+한국 전자세금계산서 발행 라이브러리 + Claude Code 스킬.
+중복 발행과 잘못된 발행을 **구조로** 막는다.
+
+```bash
+npm install korean-tax-invoice
+```
+
+## 왜 이게 필요한가
+
+세금계산서는 잘못 발행하면 되돌릴 수 없다. 국세청 수정발행 절차를 밟아야 하고
+기록이 남는다. 그런데 대부분의 연동 코드는 이걸 일반 API 호출처럼 다룬다.
+
+실제로 터지는 지점은 세 군데다.
+
+**타임아웃 후 재시도.** ASP 가 응답을 안 주면 보통 재시도한다. 그런데 요청은
+이미 접수됐을 수 있다. 같은 계산서가 두 장 나간다.
+
+**작성일자 하루 밀림.** 서버가 UTC 면 KST 자정 근처에서 전날이 찍힌다. 작성일자는
+과세기간을 가르는 값이라 월말 발행분이 전월로 넘어가면 부가세 신고가 어긋난다.
+
+**필수값 누락을 빈 문자열로.** 대표자명이 없다고 `""` 를 보내면 ASP 가 받아주는
+경우가 있다. 그대로 국세청에 간다.
+
+이 라이브러리는 세 가지를 강제한다.
+
+```
+1. 필수값이 비면 발행하지 않는다        → validateIssueRequest()
+2. 접수와 발행을 구분한다               → SUBMITTED ≠ ISSUED
+3. "거절됨"과 "모름"을 구분한다          → 후자는 재요청 금지
+```
+
+## 빠른 시작
+
+```bash
+export BOLTA_API_KEY=test_xxxxx
+npm run build
+
+node scripts/preflight.mjs                          # 키·인증서 점검
+node scripts/issue.mjs examples/request.json        # 검증만 (발행 안 함)
+node scripts/issue.mjs examples/request.json --confirm   # 실제 발행
+node scripts/check-status.mjs <issuanceKey>         # 결과 확인
+```
+
+`--confirm` 이 없으면 아무것도 발행하지 않는다. 실수로 실행됐을 때 아무 일도
+일어나지 않아야 하기 때문이다.
+
+## 코드로 쓰기
+
+```ts
+import {
+  BoltaProvider,
+  validateIssueRequest,
+  buildClientReferenceId,
+  ProviderUncertainError,
+} from 'korean-tax-invoice'
+
+const check = validateIssueRequest(request, { verified: company.verifiedAt !== null })
+if (!check.ok) {
+  // 사유는 한국어 배열로 온다. 승인 화면에 그대로 띄울 수 있다.
+  return { blocked: check.issues.map((i) => i.message) }
+}
+
+const provider = new BoltaProvider()
+const refId = buildClientReferenceId('myapp', invoice.id)
+
+// 프로바이더를 부르기 *전에* 잠근다
+await db.markSubmitted(invoice.id)
+
+try {
+  const { issuanceKey } = await provider.submit(request, refId)
+  await db.saveIssuanceKey(invoice.id, issuanceKey)
+} catch (e) {
+  if (e instanceof ProviderUncertainError) {
+    // 접수 여부 불명. 재요청하면 중복 발행이다.
+    const status = await provider.getStatusByReferenceId(refId)
+    // SUBMITTED → 이미 접수됨 / UNKNOWN → 접수 안 됨
+  }
+}
+```
+
+## 프로바이더
+
+| 프로바이더 | 상태 |
+|---|---|
+| 볼타 (Bolta) | 구현됨. 실제 발행 검증 완료 |
+| 팝빌 | 인터페이스만 |
+| 바로빌 | 인터페이스만 |
+
+새 프로바이더는 `src/core/types.ts` 의 `TaxInvoiceProvider` 를 구현하면 된다.
+핵심 로직(검증·사업자번호·KST 날짜)은 프로바이더와 무관하다.
+
+## Claude Code 스킬로 쓰기
+
+이 리포를 스킬 디렉터리에 두면 Claude 가 `SKILL.md` 를 읽고 스크립트를 직접
+실행한다. 발행 전 검증, 사고 시 상태 조회, 재시도 판단까지 절차가 문서에 있다.
+
+```
+~/.claude/skills/korean-tax-invoice/
+```
+
+## 문서
+
+- [`SKILL.md`](SKILL.md) — 발행 절차와 함정
+- [`references/bolta-setup.md`](references/bolta-setup.md) — 발급자·인증서·웹훅 등록
+- [`references/integration.md`](references/integration.md) — 서비스에 붙일 때의 설계
+
+## 개발
+
+```bash
+npm run check     # 타입 검사 + 테스트
+```
+
+테스트는 프로바이더를 호출하지 않는다. 실제 발행 흐름은 테스트 키로 확인한다.
+
+## 면책
+
+이 라이브러리는 발행 API 연동을 돕는다. 세무 판단(과세 유형, 작성일자, 수정발행
+사유)은 사용자 책임이다. 확실하지 않으면 세무 전문가에게 확인하라.
+
+## License
+
+MIT
