@@ -86,14 +86,25 @@ async function main() {
   console.log(`  세액       ${money(tax)}원`)
   console.log(`  합계       ${money(supplyCost + tax)}원`)
 
-  const provider = new BoltaProvider()
-  const env = provider.isTestKey() ? '테스트 (가상)' : '라이브 — 실제 국세청 발행'
+  // 키가 없어도 검증 결과는 끝까지 보여준다. 여기서 BoltaProvider 를 먼저
+  // 만들면 생성자가 던져서 "환경" 줄도 못 찍고 중간에 잘린 것처럼 보인다.
+  const key = process.env.BOLTA_API_KEY
+  const env = !key
+    ? '키 없음 — 발행할 수 없습니다'
+    : key.startsWith('test_')
+      ? '테스트 (가상)'
+      : '라이브 — 실제 국세청 발행'
   console.log(`\n  환경       ${env}`)
 
   if (!CONFIRM) {
     console.log('\n검증만 했습니다. 실제로 발행하려면 --confirm 을 붙이세요.')
+    if (!key) {
+      console.log('발행하려면 BOLTA_API_KEY 가 필요합니다.')
+    }
     return
   }
+
+  const provider = new BoltaProvider()
 
   // 멱등성 키. 같은 invoiceId 면 항상 같은 값이라 재시도해도 중복되지 않는다.
   const refId = buildClientReferenceId(raw.referencePrefix ?? 'kti', raw.invoiceId)
