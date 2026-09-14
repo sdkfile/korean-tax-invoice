@@ -18,7 +18,21 @@
  * 만든 값이라 응답을 못 받았을 때도 항상 손에 있다.
  */
 
-import { BoltaProvider } from '../dist/providers/bolta/index.js'
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+// dist 가 없으면 import 가 ERR_MODULE_NOT_FOUND 로 죽는다. 스킬로 설치한
+// 직후 가장 먼저 밟는 지뢰라, 스택 트레이스 대신 할 일을 알려준다.
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+if (!existsSync(join(root, 'dist'))) {
+  console.error('빌드가 필요합니다:\n')
+  console.error('  npm install && npm run build\n')
+  console.error('(스크립트가 dist/ 를 사용합니다. 최초 1회만 하면 됩니다.)')
+  process.exit(1)
+}
+
+const { BoltaProvider } = await import('../dist/providers/bolta/index.js')
 
 const args = process.argv.slice(2)
 const refMode = args.includes('--ref')

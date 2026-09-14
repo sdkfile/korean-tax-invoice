@@ -97,12 +97,85 @@ try {
 
 ## Claude Code 스킬로 쓰기
 
-이 리포를 스킬 디렉터리에 두면 Claude 가 `SKILL.md` 를 읽고 스크립트를 직접
-실행한다. 발행 전 검증, 사고 시 상태 조회, 재시도 판단까지 절차가 문서에 있다.
+스킬 디렉터리에 두면 Claude 가 `SKILL.md` 를 읽고 스크립트를 직접 실행한다.
+"○○회사 세금계산서 발행해줘" 라고 하면 검증하고, 내용을 보여주고, 확인받은
+뒤 발행한다.
+
+### 설치
+
+```bash
+# Claude Code
+git clone https://github.com/sdkfile/korean-tax-invoice \
+  ~/.claude/skills/korean-tax-invoice
+
+# Hermes
+git clone https://github.com/sdkfile/korean-tax-invoice \
+  ~/.hermes/skills/korean-tax-invoice
+```
+
+### 빌드 (최초 1회, 필수)
+
+```bash
+cd ~/.claude/skills/korean-tax-invoice
+npm install && npm run build
+```
+
+스크립트가 `dist/` 를 쓰기 때문에 이걸 건너뛰면 `issue` 와 `check-status` 가
+동작하지 않는다. 잊었을 때는 스크립트가 무엇을 해야 하는지 알려준다.
+
+### 키 설정
+
+```bash
+export BOLTA_API_KEY=test_xxxxx    # 볼타 개발자센터 > API 키
+```
+
+- `test_` — 가상 발행. 국세청에 가지 않는다. 여기서 시작하라
+- `live_` — **실제 발행.** 되돌릴 수 없다
+
+`.env` 에 넣어도 된다. 리포의 `.gitignore` 가 `.env` 를 제외한다.
+
+### 확인
+
+```bash
+node scripts/preflight.mjs
+```
+
+"발행 준비 완료" 가 나오면 끝이다. Claude 에게 이렇게 말하면 된다.
+
+> 볼타로 세금계산서 발행하려는데 준비됐는지 봐줘
+
+### 사용 예
 
 ```
-~/.claude/skills/korean-tax-invoice/
+사용자: 고객사 주식회사에 9월 이용료 50만원 세금계산서 발행해줘
+
+Claude: (preflight → 요청 파일 작성 → 검증 실행)
+
+        공급받는자  고객사 주식회사 (220-81-62517)
+        받는사람    tax@client.co.kr
+        공급가액    500,000원
+        세액         50,000원
+        합계        550,000원
+        환경        테스트 (가상)
+
+        이 내용으로 발행할까요?
+
+사용자: 응
+
+Claude: (--confirm 으로 발행 → issuanceKey 확인 → 상태 조회)
 ```
+
+`--confirm` 없이는 아무것도 발행되지 않는다. 실수로 실행됐을 때 아무 일도
+일어나지 않아야 하기 때문이다.
+
+### 라이브로 넘어갈 때
+
+라이브는 테스트와 **완전히 별도 환경**이다. 키만 바꾸면 안 되고 세 가지를
+다시 해야 한다 — 발급자 등록, 공동인증서 등록, 웹훅 URL 등록.
+`references/bolta-setup.md` 참고.
+
+첫 실전 발행은 **자기 회사끼리 소액**으로 해보길 권한다. 잘못돼도 남에게
+가지 않는다.
 
 ## 문서
 
