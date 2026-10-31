@@ -214,3 +214,19 @@ describe('웹훅', () => {
     expect(provider.verifyWebhookSender({ ip: '43.201.136.252, 1.2.3.4' })).toBe(true)
   })
 })
+
+describe('실측 응답 모양', () => {
+  it('같은 관리번호 재요청(이미 접수됨)을 ALREADY_SUBMITTED 로 구분한다', async () => {
+    // "고쳐서 다시 보내라" 가 아니라 중복 차단이다 — 첫 요청이 이미 접수돼 있다.
+    const f = errFetch(400, '{"message":"이미 접수된 요청입니다. [요청 유형=세금계산서 정발행]"}')
+    const err = await makeProvider(f).submit(makeRequest(), 'ref-1').catch((e) => e)
+    expect(err).toBeInstanceOf(ProviderRejectedError)
+    expect((err as ProviderRejectedError).code).toBe('ALREADY_SUBMITTED')
+  })
+
+  it('status 없이 issuedAt 만 오는 발행 조회를 ISSUED 로 본다', async () => {
+    // 볼타 GET /v1/taxInvoices/{key} 응답에는 status 필드가 없다(2026-10 실측).
+    const f = okFetch({ issuanceKey: 'K', issuedAt: '2026-10-31T10:54:06Z', ntsTransactionId: 'test_nts_x' })
+    expect((await makeProvider(f).getStatus('K')).status).toBe('ISSUED')
+  })
+})

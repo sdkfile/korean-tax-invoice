@@ -217,6 +217,13 @@ export class BoltaProvider implements TaxInvoiceProvider {
         )
       }
 
+      // 같은 관리번호로 다시 보내면 볼타가 400 "이미 접수된 요청입니다" 를 준다(실측).
+      // 실패가 아니라 멱등성이 동작한 것 — 첫 요청은 이미 접수돼 있다. 호출부가
+      // "고쳐서 다시 보내라" 로 안내하지 않도록 코드를 따로 붙인다.
+      if (res.status === 400 && message.includes('이미 접수된')) {
+        throw new ProviderRejectedError(message, res.status, 'ALREADY_SUBMITTED')
+      }
+
       throw new ProviderRejectedError(message || `볼타 오류 ${res.status}`, res.status, code)
     }
 
@@ -245,13 +252,18 @@ export class BoltaProvider implements TaxInvoiceProvider {
 
     const body = (await res.json()) as {
       status?: string
+      issuedAt?: string
       ntsConfirmNum?: string
       taxInvoiceUrl?: string
       cause?: { message?: string; code?: string }
     }
 
+    // 이 엔드포인트는 발행된 건만 돌려주고, 응답에 status 필드가 없다(실측
+    // 2026-10: issuanceKey·issuedAt·ntsTransactionId·invoice 만 온다).
+    // status 가 없으면 mapStatus 가 UNKNOWN 을 줘서 "발행됐는데 조회 안 됨" 으로
+    // 보였다. issuedAt 이 있으면 발행 완료다.
     return {
-      status: mapStatus(body.status),
+      status: body.status ? mapStatus(body.status) : body.issuedAt ? 'ISSUED' : 'UNKNOWN',
       ...(body.ntsConfirmNum ? { ntsConfirmNum: body.ntsConfirmNum } : {}),
       ...(body.taxInvoiceUrl ? { invoiceUrl: body.taxInvoiceUrl } : {}),
       ...(body.cause?.message ? { failureReason: body.cause.message } : {}),

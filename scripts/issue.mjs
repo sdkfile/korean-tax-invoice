@@ -141,6 +141,13 @@ async function main() {
       console.error(`  관리번호로 조회해서 접수됐는지 먼저 확인하세요: ${refId}`)
       process.exit(2)
     }
+    if (e instanceof ProviderRejectedError && e.code === 'ALREADY_SUBMITTED') {
+      // 같은 관리번호의 재요청. 볼타가 막은 것이고, 새 계산서는 나가지 않았다.
+      console.log('\n중복 차단: 같은 관리번호로 이미 접수된 건입니다.')
+      console.log('  새 세금계산서는 발행되지 않았습니다. 첫 요청의 상태를 조회하세요:')
+      console.log(`  node scripts/check-status.mjs --ref ${refId}`)
+      process.exit(0)
+    }
     if (e instanceof ProviderRejectedError) {
       // 거절 = 접수 안 됨. 고쳐서 다시 보내도 된다.
       console.error(`\n거절됨 (HTTP ${e.status}): ${e.message}`)
