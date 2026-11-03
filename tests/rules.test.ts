@@ -94,4 +94,18 @@ describe('buildClientReferenceId', () => {
       buildClientReferenceId('myapp', 'inv_2'),
     )
   })
+
+  it('ASCII id 는 예전과 똑같이 만든다', () => {
+    // 이미 발행한 건의 관리번호가 바뀌면 재시도 때 중복 방지가 깨진다.
+    expect(buildClientReferenceId('myapp', 'inv-2026-09-001')).toBe('myapp-inv-2026-09-001')
+  })
+
+  it('한글 id 도 헤더로 보낼 수 있는 결정적 ASCII 로 만든다', () => {
+    // 한글이 그대로 헤더에 들어가면 fetch 가 보내기도 전에 실패한다(실측).
+    const a = buildClientReferenceId('myapp', '데모상사-2026-11')
+    expect(a).toMatch(/^[\x21-\x7e]+$/)
+    expect(a).toBe(buildClientReferenceId('myapp', '데모상사-2026-11'))
+    expect(a).not.toBe(buildClientReferenceId('myapp', '샘플랩-2026-11'))
+    expect(a.startsWith('myapp-2026-11-')).toBe(true)
+  })
 })

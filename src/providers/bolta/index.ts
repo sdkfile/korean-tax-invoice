@@ -170,6 +170,17 @@ export class BoltaProvider implements TaxInvoiceProvider {
   async submit(request: IssueRequest, clientReferenceId: string): Promise<SubmitResult> {
     const payload = this.buildPayload(request)
 
+    // 헤더 값이 ASCII 가 아니면 fetch 가 보내기도 전에 던진다. 그걸 아래 catch 가
+    // "응답 못 받음(접수 불명)" 으로 바꾸면 안 보낸 요청을 조회하라고 안내하게 된다.
+    // 보내지 않았다는 게 확실하므로 거절로 알린다.
+    if (!/^[\x21-\x7e]+$/.test(clientReferenceId)) {
+      throw new ProviderRejectedError(
+        `관리번호에 헤더로 보낼 수 없는 글자가 있습니다 (${clientReferenceId}). 요청을 보내지 않았습니다. buildClientReferenceId() 로 만드세요.`,
+        0,
+        'INVALID_REFERENCE_ID',
+      )
+    }
+
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
 

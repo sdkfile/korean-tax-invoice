@@ -84,7 +84,29 @@ export function calculateTax(supplyCost: number, taxType: string = 'TAXABLE'): n
  * 막아준다. 재시도마다 새로 만들면 멱등성이 아예 동작하지 않는다.
  *
  * 그래서 시각이나 난수를 섞지 않는다 — 발행 대상의 고유 id 만 쓴다.
+ *
+ * HTTP 헤더로 나가므로 ASCII 여야 한다. invoiceId 에 한글이 섞이면(`데모상사-2026-11`)
+ * fetch 가 요청을 보내기도 전에 실패한다(실측). 그래서 ASCII 가 아닌 글자가
+ * 있으면 ASCII 부분 + invoiceId 의 FNV-1a 해시로 바꾼다 — 같은 입력이면 항상
+ * 같은 값이라 멱등성은 그대로다. 이미 ASCII 인 id 는 예전과 똑같이 나온다.
  */
 export function buildClientReferenceId(prefix: string, invoiceId: string): string {
-  return `${prefix}-${invoiceId}`
+  const raw = `${prefix}-${invoiceId}`
+  if (/^[\x21-\x7e]+$/.test(raw)) return raw
+  const ascii = raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-{2,}/g, '-').replace(/-$/, '')
+  return `${ascii}-${fnv1a(invoiceId)}`
+}
+
+/** 32비트 FNV-1a 두 번(시드 다르게) → 16자리 hex. 의존성 없이 결정적인 짧은 해시. */
+function fnv1a(s: string): string {
+  const bytes = new TextEncoder().encode(s)
+  const h = (seed: number) => {
+    let x = seed >>> 0
+    for (const b of bytes) {
+      x ^= b
+      x = Math.imul(x, 0x01000193) >>> 0
+    }
+    return x.toString(16).padStart(8, '0')
+  }
+  return h(0x811c9dc5) + h(0x01000193)
 }

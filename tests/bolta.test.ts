@@ -224,6 +224,15 @@ describe('실측 응답 모양', () => {
     expect((err as ProviderRejectedError).code).toBe('ALREADY_SUBMITTED')
   })
 
+  it('ASCII 가 아닌 관리번호는 보내지 않고 거절로 알린다', async () => {
+    // "응답 못 받음" 으로 오인하면 안 보낸 요청을 조회하라고 안내하게 된다.
+    const f = okFetch({ issuanceKey: 'K' })
+    const err = await makeProvider(f).submit(makeRequest(), 'myapp-데모상사').catch((e) => e)
+    expect(err).toBeInstanceOf(ProviderRejectedError)
+    expect((err as ProviderRejectedError).code).toBe('INVALID_REFERENCE_ID')
+    expect(f).not.toHaveBeenCalled()
+  })
+
   it('status 없이 issuedAt 만 오는 발행 조회를 ISSUED 로 본다', async () => {
     // 볼타 GET /v1/taxInvoices/{key} 응답에는 status 필드가 없다(2026-10 실측).
     const f = okFetch({ issuanceKey: 'K', issuedAt: '2026-10-31T10:54:06Z', ntsTransactionId: 'test_nts_x' })
